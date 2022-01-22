@@ -1,6 +1,8 @@
 import requests
 import os
 import json
+import gspread
+import pandas as pd
 
 from web3 import Web3
 
@@ -8,15 +10,23 @@ from web3 import Web3
 ON_HEROKU = os.environ.get("ON_HEROKU")
 if ON_HEROKU:
     API_KEY = os.environ.get('API_KEY')
+    GS_SERVICE = json.load(os.environ.get('GS_SERVICE'))
 else:
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     CONFIG_PATH = os.path.join(ROOT_DIR, 'config.json')
     try:
         with open(CONFIG_PATH, 'r') as f:
-            tg_config = json.load(f)
-            API_KEY = tg_config['API_KEY']
+            config = json.load(f)
+            API_KEY = config['API_KEY']
     except FileNotFoundError:
         print("log: config file not found")
+
+    GS_TOKEN_PATH = os.path.join(ROOT_DIR, 'gs-token.json')
+    try:
+        with open(GS_TOKEN_PATH, 'r') as f:
+            GS_SERVICE = json.load(f)
+    except FileNotFoundError:
+        print("log: google sheets token file not found")
 
 
 class EvmAPI:
@@ -91,16 +101,11 @@ class Blockchain:
     """Primarily used to make code less lengthy and ease interacting with contracts on chain"""
 
     RPC_DICT = {
-        "ethereum": "https://mainnet.infura.io/v3/d13464cb686d48a4b6d58d40277503f5",
-        "arbitrum": "https://arb1.arbitrum.io/rpc",
-        "celo": "https://forno.celo.org",
-        "avalanche": "https://api.avax.network/ext/bc/C/rpc",
-        "fantom": "https://rpc.ftm.tools/",
+        "ethereum": "https://eth-mainnet.gateway.pokt.network/v1/5f3453978e354ab992c4da79",
     }
 
     def __init__(self, blockchain):
         self.blockchain = blockchain.lower()
-        self.abis = gsinputs.ABIs()
 
     def get_w3(self):
         # get correct RPC address
@@ -108,7 +113,7 @@ class Blockchain:
         w3 = Web3(Web3.HTTPProvider(rpc_url))
         return w3
 
-    def create_contract(self, contract_address, abi_address=None, abi_name=None):
+    def create_contract(self, contract_address, abi_address=None):
         # check if ABI was passed as argument
         if abi_address is None:
             abi_address = contract_address
@@ -122,10 +127,7 @@ class Blockchain:
         w3 = Web3(Web3.HTTPProvider(rpc_url))
 
         # get ABI
-        if abi_name is None:
-            abi = EvmAPI(self.blockchain).get_abi(abi_address)
-        else:
-            abi = self.abis.abi(abi_name)
+        abi = EvmAPI(self.blockchain).get_abi(abi_address)
 
         # create contract instance
         contract_instance = w3.eth.contract(address=contract_address, abi=abi)
@@ -140,3 +142,22 @@ class Blockchain:
         # create account
         account = w3.eth.account.from_key(private_key)
         return account
+
+
+class Sheets():
+    """This class will enable saving and retrieving of data from google spreadsheets
+    It always retrieves and writes data from and to the given spreadsheet"""
+
+    def __init__(self, sheet_name):
+        self.sheet_name = sheet_name
+        gc = gspread.service_account_from_dict(info=GS_SERVICE)
+        self.sheet = gc.open(self.sheet_name).sheet1
+        self.df = pd.DataFrame(self.sheet.get_all_records())
+
+    def get_df(self):
+        return self.df
+
+    def write_df(self, df):
+        self.sheet.update([df.columns.values.tolist()] + df.values.tolist())
+        print("log: files successfully written to google sheet")
+        return
