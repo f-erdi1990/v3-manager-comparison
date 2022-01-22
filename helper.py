@@ -11,8 +11,8 @@ ON_HEROKU = os.environ.get("ON_HEROKU")
 if ON_HEROKU:
     print("log: system is aware its on heroku")
     API_KEY = os.environ.get('API_KEY')
-    GS_SERVICE = os.environ.get('GS_SERVICE')
-    print(GS_SERVICE, type(GS_SERVICE))
+    string_gs_service = os.environ.get('GS_SERVICE')
+    GS_SERVICE = json.loads(string_gs_service)
 else:
     print("log: system is aware it is not on heroku")
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
