@@ -9,9 +9,11 @@ from web3 import Web3
 # manage API_KEY with heroku setup vs. local testing
 ON_HEROKU = os.environ.get("ON_HEROKU")
 if ON_HEROKU:
+    print("log: system is aware its on heroku")
     API_KEY = os.environ.get('API_KEY')
     GS_SERVICE = json.load(os.environ.get('GS_SERVICE'))
 else:
+    print("log: system is aware it is not on heroku")
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     CONFIG_PATH = os.path.join(ROOT_DIR, 'config.json')
     try:
